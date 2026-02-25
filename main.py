@@ -187,19 +187,15 @@ YEAR(date_column) = YEAR(GETDATE())
 AND DATEPART(QUARTER, date_column) = DATEPART(QUARTER, GETDATE())
 
 return only one valid SQL statement. Do not return multiple queries
-If context contains previous filters, apply them.
 Question: {request.message}
 """
-
-    # Call Gemini / LLM
     try:
         response = client.models.generate_content(
-            model=os.getenv("MODEL_NAME", "models/gemini-2.5-flash"),
+            model=os.getenv("MODEL_NAME"),
             contents=prompt,
         )
         sql_query = response.text.strip()
 
-        # Remove markdown if model ignores instructions
         sql_query = sql_query.replace("```sql", "").replace("```", "").strip()
 
     except Exception as e:
@@ -209,18 +205,15 @@ Question: {request.message}
             "error_message": str(e)
         }
 
-    #  Execute SQL
     try:
         cursor.execute(sql_query)
         rows = cursor.fetchall()
         columns = [column[0] for column in cursor.description]
 
-        # Convert first row or aggregation results to natural language
         if len(rows) == 1 and len(rows[0]) == 1:
             value = rows[0][0]
             natural_answer = f"You have {value} items matching your query."
         else:
-            # For multiple rows, join into readable string
             lines = [", ".join([str(c) for c in row]) for row in rows]
             natural_answer = "Here are the results:\n" + "\n".join(lines)
 
@@ -236,11 +229,10 @@ Question: {request.message}
 
     latency = int((time.time() - start_time) * 1000)
 
-    # Example token usage (dummy here; replace if Gemini provides real usage)
     token_usage = {
-        "prompt_tokens": len(prompt.split()),
-        "completion_tokens": len(sql_query.split()),
-        "total_tokens": len(prompt.split()) + len(sql_query.split())
+        "prompt_tokens": len(prompt),
+        "completion_tokens": len(sql_query),
+        "total_tokens": len(prompt) + len(sql_query)
     }
 
     return {
@@ -248,7 +240,7 @@ Question: {request.message}
         "sql_query": sql_query,          
         "token_usage": token_usage,
         "latency_ms": latency,
-        "provider": os.getenv("PROVIDER", "gemini"),
-        "model": os.getenv("MODEL_NAME", "models/gemini-2.5-flash"),
+        "provider": os.getenv("PROVIDER"),
+        "model": os.getenv("MODEL_NAME" ),
         "status": status
     }
